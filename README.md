@@ -120,6 +120,33 @@ context-graph-agent/
 
 ---
 
-## Scope of this phase
+## Status
 
-Design only. No services run yet. Where the design references real integrations (GitHub, Slack, Jira, etc.) the plan is to ship a mock connector and a synthetic event generator alongside each real one, so the platform can be demonstrated end-to-end without live enterprise accounts and switched to real credentials without architectural change (see [ADR-0003](docs/adr/0003-connector-framework.md)).
+The platform is built and running end to end: eight independently deployable services, the
+GitHub connector (OAuth / App / PAT, webhooks, pagination, rate limiting), a real Neo4j graph
+(temporal, versioned, provenance), Qdrant hybrid retrieval, a typed LangGraph-style reasoning
+pipeline, a single-file dashboard, full observability (Prometheus/Grafana/OTel), a Kubernetes
+Helm chart, and a CI matrix that gates all of it. Real integrations ship alongside a mock twin
++ synthetic generator, so the whole pipeline runs with no credentials (see
+[ADR-0003](docs/adr/0003-connector-framework.md)) and switches to real credentials without
+architectural change.
+
+## Run it
+
+```bash
+pip install -e ".[dev,api,github]" && pytest -q     # tests
+cortex-demo                                          # the deploy-will-fail scenario, end to end
+make up                                              # full stack: API :8000, dashboard :3000, Grafana :3001
+```
+
+## Docs & governance
+
+- Architecture: [`docs/architecture/architecture.md`](docs/architecture/architecture.md) (C4),
+  [`sequence-diagrams.md`](docs/architecture/sequence-diagrams.md), [`docs/adr/`](docs/adr/)
+- Operate: [`docs/observability.md`](docs/observability.md), [`docs/runbooks.md`](docs/runbooks.md),
+  [`docs/troubleshooting.md`](docs/troubleshooting.md)
+- Deploy: [`deploy/README.md`](deploy/README.md) (Compose → Helm → release)
+- Quality & security: [`docs/testing.md`](docs/testing.md), [`docs/threat-model.md`](docs/threat-model.md),
+  [`SECURITY.md`](SECURITY.md), [`CONTRIBUTING.md`](CONTRIBUTING.md), [`LICENSE`](LICENSE)
+- API: [`docs/api/openapi/`](docs/api/openapi/), [`docs/api/cortex.postman_collection.json`](docs/api/cortex.postman_collection.json)
+

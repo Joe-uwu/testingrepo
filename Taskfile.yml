@@ -1,0 +1,63 @@
+# go-task runner (https://taskfile.dev). `task --list` to see targets.
+# Mirrors the Makefile; use whichever you prefer.
+version: "3"
+
+tasks:
+  install:
+    desc: Install the workspace (editable) + dev tools
+    cmds: ['pip install -e ".[dev,api,github]"']
+
+  test:
+    desc: Run unit + contract + service + e2e tests
+    cmds: ["pytest -q"]
+
+  lint:
+    desc: Lint + format check
+    cmds: ["ruff check .", "ruff format --check ."]
+
+  type:
+    desc: Type-check (mypy strict)
+    cmds: ["mypy"]
+
+  demo:
+    desc: Run the deploy-will-fail scenario end to end (in-memory)
+    cmds: ["cortex-demo"]
+
+  up:
+    desc: Start the full stack (compose)
+    cmds: ["docker compose -f infra/compose/docker-compose.yml up -d --build"]
+
+  down:
+    desc: Tear down the stack
+    cmds: ["docker compose -f infra/compose/docker-compose.yml down -v"]
+
+  openapi:
+    desc: Regenerate the committed OpenAPI specs
+    cmds: ["python tools/scripts/dump_openapi.py"]
+
+  sbom:
+    desc: Generate a CycloneDX SBOM (sbom.json)
+    cmds: ["bash tools/scripts/generate_sbom.sh"]
+
+  loadgen:
+    desc: Fire synthetic load at a running api-service and report latency/throughput
+    cmds: ["python tools/scripts/loadgen.py"]
+
+  bench:
+    desc: Micro-benchmark the scoring + reasoning hot paths
+    cmds: ["python tools/scripts/benchmark.py"]
+
+  precommit:
+    desc: Run all pre-commit hooks
+    cmds: ["pre-commit run --all-files"]
+
+  e2e:
+    desc: Dashboard Playwright tests
+    dir: apps/dashboard/e2e
+    cmds: ["npm install", "npx playwright test"]
+
+  helm-lint:
+    desc: Lint + render the Helm chart
+    cmds:
+      - "helm lint deploy/helm/cortex"
+      - "helm template cortex deploy/helm/cortex >/dev/null"

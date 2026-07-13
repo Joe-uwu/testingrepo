@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 COMPOSE := docker compose -f infra/compose/docker-compose.yml
 
-.PHONY: help install demo synth test lint type up down seed logs clean openapi openapi-check build-images
+.PHONY: help install demo synth test lint type up down seed logs clean openapi openapi-check build-images sbom loadgen bench precommit helm-lint
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -48,6 +48,21 @@ build-images: ## Build every service image from its own Dockerfile
 		echo "building cortex/$$s-service"; \
 		docker build -f services/$$s-service/Dockerfile -t cortex/$$s-service . || exit 1; \
 	done
+
+sbom: ## Generate a CycloneDX SBOM (sbom.json)
+	bash tools/scripts/generate_sbom.sh
+
+loadgen: ## Fire synthetic load at a running api-service
+	python tools/scripts/loadgen.py
+
+bench: ## Micro-benchmark the scoring + reasoning hot paths
+	python tools/scripts/benchmark.py
+
+precommit: ## Run all pre-commit hooks
+	pre-commit run --all-files
+
+helm-lint: ## Lint + render the Helm chart
+	helm lint deploy/helm/cortex && helm template cortex deploy/helm/cortex >/dev/null
 
 clean: ## Remove caches and build artifacts
 	find . -name __pycache__ -type d -exec rm -rf {} + 2>/dev/null || true
