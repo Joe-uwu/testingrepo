@@ -65,4 +65,10 @@ def create_app(
             "errors": [],
         }
 
+    @app.get("/api/v1/index/stats", tags=["retrieval"], summary="Vector index size for an org")
+    def index_stats(x_org_id: str | None = Header(default=None)) -> dict:
+        org = _org(x_org_id)
+        retrieval.ensure_indexed(org)
+        return {"data": {"vectors": retrieval.index_size(org)}, "meta": {"org_id": org}, "errors": []}
+
     return app
