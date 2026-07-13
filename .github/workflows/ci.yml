@@ -274,3 +274,20 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Run e2e
         run: npx playwright test
+
+  # --- Helm chart lints + renders for every environment (hard gate) ---------------
+  helm-lint:
+    name: Helm chart lint + template
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: Lint
+        run: helm lint deploy/helm/cortex
+      - name: Render default / staging / production
+        run: |
+          helm template cortex deploy/helm/cortex >/dev/null
+          helm template cortex deploy/helm/cortex -f deploy/helm/cortex/values-staging.yaml >/dev/null
+          helm template cortex deploy/helm/cortex -f deploy/helm/cortex/values-production.yaml --set image.tag=v0 >/dev/null
+          echo "chart renders for all environments"

@@ -1,0 +1,64 @@
+# Default values for the Cortex chart. Override per environment with values-staging.yaml /
+# values-production.yaml (see deploy/README.md).
+
+namespace: cortex
+
+image:
+  registry: ghcr.io/joe-uwu
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# Environment shared by every service (12-factor). Points at the in-cluster backends when
+# infra.enabled; override to managed endpoints in production.
+env:
+  CORTEX_RUNTIME: kafka
+  CORTEX_LOG_JSON: "true"
+  CORTEX_KAFKA_BOOTSTRAP: kafka:9092
+  CORTEX_NEO4J_URI: bolt://neo4j:7687
+  CORTEX_NEO4J_USER: neo4j
+  CORTEX_NEO4J_PASSWORD: password
+  CORTEX_QDRANT_URL: http://qdrant:6333
+  CORTEX_REDIS_URL: redis://redis:6379/0
+  CORTEX_OTEL_ENDPOINT: http://otel-collector:4317
+
+# Default per-container resources; a service may override its own `resources`.
+resources:
+  requests: {cpu: 50m, memory: 128Mi}
+  limits: {cpu: 500m, memory: 512Mi}
+
+# The eight pipeline services. `image` is the repo under image.registry.
+services:
+  api-service: {port: 8000, replicas: 2, image: api-service, public: true}
+  ingestion-service: {port: 8001, replicas: 1, image: ingestion-service}
+  entity-service: {port: 8002, replicas: 2, image: entity-service}
+  graph-service: {port: 8003, replicas: 1, image: graph-service}
+  retrieval-service: {port: 8004, replicas: 2, image: retrieval-service}
+  ranking-service: {port: 8005, replicas: 1, image: ranking-service}
+  llm-service: {port: 8006, replicas: 1, image: llm-service}
+  notification-service: {port: 8007, replicas: 1, image: notification-service}
+
+dashboard:
+  enabled: true
+  port: 3000
+  replicas: 1
+  image: dashboard
+
+# Toggle the bundled single-replica backends. Disable to use managed Kafka/Neo4j/Qdrant/Redis
+# and point the env vars above at them.
+infra:
+  enabled: true
+  kafka:
+    image: apache/kafka:3.8.0
+  neo4j:
+    image: neo4j:5.20
+    password: password
+  qdrant:
+    image: qdrant/qdrant:latest
+  redis:
+    image: redis:7-alpine
+
+ingress:
+  enabled: false
+  className: nginx
+  apiHost: api.cortex.local
+  dashboardHost: cortex.local

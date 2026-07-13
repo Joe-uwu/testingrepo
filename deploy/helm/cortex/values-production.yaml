@@ -1,0 +1,42 @@
+# Production overlay: managed backends (infra disabled), higher replicas + resources,
+# ingress on production hosts. Point the env vars at your managed Kafka/Neo4j/Qdrant/Redis
+# and inject secrets (NEO4J_PASSWORD, etc.) via a Secret rather than the ConfigMap.
+namespace: cortex-prod
+
+image:
+  tag: "" # set by the release workflow to the pushed version tag
+  pullPolicy: IfNotPresent
+
+env:
+  CORTEX_RUNTIME: kafka
+  CORTEX_LOG_JSON: "true"
+  CORTEX_KAFKA_BOOTSTRAP: kafka.managed.svc:9092
+  CORTEX_NEO4J_URI: bolt://neo4j.managed.svc:7687
+  CORTEX_NEO4J_USER: neo4j
+  CORTEX_QDRANT_URL: http://qdrant.managed.svc:6333
+  CORTEX_REDIS_URL: redis://redis.managed.svc:6379/0
+  CORTEX_OTEL_ENDPOINT: http://otel-collector.observability.svc:4317
+
+resources:
+  requests: {cpu: 200m, memory: 256Mi}
+  limits: {cpu: "1", memory: 1Gi}
+
+services:
+  api-service: {port: 8000, replicas: 3, image: api-service, public: true}
+  ingestion-service: {port: 8001, replicas: 2, image: ingestion-service}
+  entity-service: {port: 8002, replicas: 3, image: entity-service}
+  graph-service: {port: 8003, replicas: 2, image: graph-service}
+  retrieval-service: {port: 8004, replicas: 3, image: retrieval-service}
+  ranking-service: {port: 8005, replicas: 2, image: ranking-service}
+  llm-service: {port: 8006, replicas: 2, image: llm-service}
+  notification-service: {port: 8007, replicas: 2, image: notification-service}
+
+# Use managed data stores in production.
+infra:
+  enabled: false
+
+ingress:
+  enabled: true
+  className: nginx
+  apiHost: api.cortex.example.com
+  dashboardHost: cortex.example.com

@@ -1,0 +1,22 @@
+Cortex {{ .Chart.AppVersion }} deployed to namespace "{{ .Values.namespace }}" (release {{ .Release.Name }}).
+
+Services: {{ range $n, $s := .Values.services }}{{ $n }} {{ end }}
+{{- if .Values.dashboard.enabled }}
+Dashboard: enabled
+{{- end }}
+Bundled infra: {{ if .Values.infra.enabled }}enabled (kafka/neo4j/qdrant/redis){{ else }}disabled (using managed endpoints){{ end }}
+
+Reach the API and dashboard:
+
+  kubectl -n {{ .Values.namespace }} port-forward svc/api-service {{ (index .Values.services "api-service").port }}:{{ (index .Values.services "api-service").port }}
+{{- if .Values.dashboard.enabled }}
+  kubectl -n {{ .Values.namespace }} port-forward svc/dashboard {{ .Values.dashboard.port }}:{{ .Values.dashboard.port }}
+{{- end }}
+
+Check rollout:
+
+  kubectl -n {{ .Values.namespace }} get pods
+{{- if .Values.ingress.enabled }}
+
+Ingress hosts: {{ .Values.ingress.apiHost }} (API){{ if .Values.dashboard.enabled }}, {{ .Values.ingress.dashboardHost }} (dashboard){{ end }}
+{{- end }}

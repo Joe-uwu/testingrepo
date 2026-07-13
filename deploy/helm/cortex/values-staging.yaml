@@ -1,0 +1,25 @@
+# Staging overlay: bundled backends, single-replica services, ingress on staging hosts.
+namespace: cortex-staging
+
+image:
+  tag: staging
+  pullPolicy: Always
+
+services:
+  api-service: {port: 8000, replicas: 1, image: api-service, public: true}
+  ingestion-service: {port: 8001, replicas: 1, image: ingestion-service}
+  entity-service: {port: 8002, replicas: 1, image: entity-service}
+  graph-service: {port: 8003, replicas: 1, image: graph-service}
+  retrieval-service: {port: 8004, replicas: 1, image: retrieval-service}
+  ranking-service: {port: 8005, replicas: 1, image: ranking-service}
+  llm-service: {port: 8006, replicas: 1, image: llm-service}
+  notification-service: {port: 8007, replicas: 1, image: notification-service}
+
+infra:
+  enabled: true
+
+ingress:
+  enabled: true
+  className: nginx
+  apiHost: api.staging.cortex.example.com
+  dashboardHost: staging.cortex.example.com

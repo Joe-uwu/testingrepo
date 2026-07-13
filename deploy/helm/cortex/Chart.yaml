@@ -1,0 +1,16 @@
+apiVersion: v2
+name: cortex
+description: Cortex — proactive enterprise context-graph platform (8 services + dashboard).
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - context-graph
+  - observability
+  - kafka
+  - neo4j
+  - qdrant
+maintainers:
+  - name: Cortex
+sources:
+  - https://github.com/Joe-uwu/context-graph-agent
