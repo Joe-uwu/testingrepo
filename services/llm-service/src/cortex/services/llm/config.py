@@ -13,3 +13,10 @@ class LlmSettings(ServiceSettings):
 
     # k-hop radius of evidence gathered before reasoning.
     evidence_hops: int = 3
+
+    # Reasoner: "template" (offline default) or "openai" (any OpenAI-compatible chat endpoint —
+    # OpenAI, Azure, Ollama, vLLM). The grounding validator gates the output either way.
+    llm_provider: str = "template"
+    llm_model: str = "gpt-4o-mini"
+    llm_api_key: str = ""
+    llm_base_url: str = "https://api.openai.com/v1"

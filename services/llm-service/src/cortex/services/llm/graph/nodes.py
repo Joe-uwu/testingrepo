@@ -10,9 +10,12 @@ from __future__ import annotations
 
 from cortex.contracts.enums import NodeLabel
 from cortex.contracts.payloads import Citation, RecommendedAction
+from cortex.platform.logging import get_logger
 from cortex.services.llm.graph.state import Finding, ReasoningState
 from cortex.services.llm.grounding import GroundingValidator
 from cortex.services.llm.reasoning import _EDGE_RANK, _EDGE_TEMPLATES
+
+log = get_logger("cortex.llm.graph")
 
 
 def observe(state: ReasoningState, deps) -> ReasoningState:
@@ -87,8 +90,30 @@ def graph_traverse(state: ReasoningState, deps) -> ReasoningState:
 
 
 def reason(state: ReasoningState, deps) -> ReasoningState:
-    """Compose a summary + base explanation from the findings."""
+    """Compose a summary + explanation. Uses the LLM (deps.llm) when configured, over the
+    graph-derived findings; falls back to the deterministic template if the LLM is absent or
+    errors. Either way, Ground validates the citations against the evidence."""
     anchor = state.evidence.anchor
+    llm = getattr(deps, "llm", None)
+    if llm is not None:
+        try:
+            result = llm.reason(
+                anchor_display=anchor.display(),
+                risk_score=state.risk_score,
+                findings=[f.text for f in state.findings],
+                entities=[
+                    {"display": n.display(), "label": n.label.value} for n in state.evidence.nodes
+                ],
+            )
+            if result.get("summary"):
+                state.summary = result["summary"]
+                state.explanation = result.get("explanation") or result["summary"]
+                state.llm_actions = result.get("actions") or None
+                return state
+        except Exception as exc:  # noqa: BLE001 - degrade to the deterministic template
+            log.warning("llm reasoning failed, using template",
+                        extra={"extra_fields": {"error": str(exc)}})
+
     state.summary = f"{anchor.display()} is at risk (score {state.risk_score:.2f})."
     parts = [state.summary]
     if state.findings:
@@ -145,7 +170,13 @@ def explain(state: ReasoningState, deps) -> ReasoningState:
 
 
 def recommend(state: ReasoningState, deps) -> ReasoningState:
-    """Derive recommended actions from the findings."""
+    """Use the LLM's actions when it produced them; otherwise derive them from the findings."""
+    if state.llm_actions:
+        state.actions = [
+            RecommendedAction(title=a.get("title", ""), detail=a.get("detail", ""))
+            for a in state.llm_actions[:3] if a.get("title")
+        ]
+        return state
     actions: list[RecommendedAction] = []
     if state.incidents and state.services:
         actions.append(RecommendedAction(

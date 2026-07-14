@@ -1,4 +1,4 @@
-# Cortex — reference implementation
+# Cortex — proactive enterprise context graph platform
 
 This is the runnable implementation of the platform designed in [`docs/`](docs/). It runs
 the entire pipeline — synthetic enterprise events → ingestion → entity extraction →
@@ -80,16 +80,28 @@ The e2e test asserts the pipeline joins at least four sources into one graph, th
 scores spread rather than saturate, and that exactly one grounded interrupt is produced
 for the incident cluster.
 
-## What is real vs. stubbed
+## What is real vs. optional
 
-Real and exercised end to end: the event envelope and contracts, the in-memory bus with
-retry/DLQ, deterministic entity extraction, entity resolution and idempotent graph writes
-with provenance/temporal edges, k-hop traversal, the weighted urgency scorer, hybrid
-retrieval (graph + keyword arms), grounded reasoning with the citation validator, and
-notification bundling/routing.
+The whole pipeline runs end to end with zero credentials on offline defaults. Every external
+boundary also has a real implementation behind the same port, switched on by configuration:
 
-Real interface, wiring left for credentials/infra (with a working mock twin so the
-pipeline still runs): the six source connectors' live API calls, the Kafka bus, the Neo4j
-and Qdrant adapters, the embedding/vector arm, the LangGraph/LLM reasoner, and the GNN
-scorer. Each is a drop-in behind a port that the in-memory default already satisfies. See
-the ADRs for why each boundary sits where it does.
+- Source connectors: all six (GitHub, Slack, Jira, Notion, Google Calendar, PagerDuty) make
+  authenticated API calls with pagination, retry/backoff, and rate-limit handling, and
+  normalize to the shared RawEvent. Each `build_*_connector` returns None when its
+  `CORTEX_<SOURCE>_*` credentials are absent, so the service falls back to the synthetic mock
+  twin and stays up. GitHub also has an HMAC-verified webhook receiver.
+- Embedder: `OpenAIEmbedder` calls any OpenAI-compatible `/v1/embeddings` endpoint
+  (`CORTEX_EMBEDDING_PROVIDER=openai`); the offline `HashingEmbedder` is the default.
+- Reasoner: the reasoning graph's Reason node calls any OpenAI-compatible chat endpoint
+  (`CORTEX_LLM_PROVIDER=openai`), with the grounding validator gating every citation and a
+  deterministic template as the fallback when no LLM is configured or a call fails.
+
+Real and exercised end to end on the offline defaults: the event envelope and contracts, the
+in-memory bus with retry/DLQ, deterministic entity extraction, entity resolution and
+idempotent graph writes with provenance/temporal edges, k-hop traversal, the weighted urgency
+scorer, hybrid retrieval (graph + keyword + vector arms), grounded reasoning with the citation
+validator, and notification bundling/routing.
+
+Swap-in-by-config for infra, with the in-memory default satisfying the same port: the Kafka
+bus, the Neo4j and Qdrant adapters, and the GNN scorer. See the ADRs for why each boundary
+sits where it does.

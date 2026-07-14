@@ -101,3 +101,71 @@ class CachedEmbedder:
         self._cache.move_to_end(text)
         while len(self._cache) > self._maxsize:
             self._cache.popitem(last=False)
+
+
+# Known embedding models -> vector dimensionality (so the vector index is sized correctly).
+_MODEL_DIMS = {
+    "text-embedding-3-small": 1536,
+    "text-embedding-3-large": 3072,
+    "text-embedding-ada-002": 1536,
+    "nomic-embed-text": 768,
+    "mxbai-embed-large": 1024,
+}
+
+
+class OpenAIEmbedder:
+    """Neural embedder over an OpenAI-compatible ``/v1/embeddings`` endpoint.
+
+    Works with OpenAI, Azure OpenAI, and local Ollama/vLLM by changing ``base_url`` + ``model``.
+    Returns the provider's vectors as-is (already normalized by the model). The HTTP client is
+    injectable so tests drive it with a mock transport, no network or key required.
+    """
+
+    def __init__(
+        self,
+        *,
+        model: str = "text-embedding-3-small",
+        api_key: str = "",
+        base_url: str = "https://api.openai.com/v1",
+        dim: int | None = None,
+        http=None,
+        timeout: float = 30.0,
+    ) -> None:
+        try:
+            import httpx
+        except ImportError as exc:  # pragma: no cover - optional dependency
+            raise RuntimeError("OpenAIEmbedder requires httpx (the 'embeddings' extra)") from exc
+        self.model = model
+        self.dim = dim if dim is not None else _MODEL_DIMS.get(model, 1536)
+        self._base = base_url.rstrip("/")
+        self._key = api_key
+        self._http = http if http is not None else httpx.Client(timeout=timeout)
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        if not texts:
+            return []
+        headers = {"Content-Type": "application/json"}
+        if self._key:
+            headers["Authorization"] = f"Bearer {self._key}"
+        resp = self._http.post(
+            f"{self._base}/embeddings",
+            headers=headers,
+            json={"model": self.model, "input": texts},
+        )
+        resp.raise_for_status()
+        rows = sorted(resp.json()["data"], key=lambda r: r["index"])
+        return [row["embedding"] for row in rows]
+
+
+def build_embedder(
+    *, provider: str = "hashing", model: str = "text-embedding-3-small",
+    api_key: str = "", base_url: str = "https://api.openai.com/v1", dim: int = 256,
+    cache: bool = True,
+) -> Embedder:
+    """Select the embedder from config. ``hashing`` (default, offline) or ``openai``
+    (any OpenAI-compatible endpoint). Wrapped in an LRU cache unless disabled."""
+    if provider == "openai":
+        inner: Embedder = OpenAIEmbedder(model=model, api_key=api_key, base_url=base_url)
+    else:
+        inner = HashingEmbedder(dim=dim)
+    return CachedEmbedder(inner) if cache else inner

@@ -28,6 +28,9 @@ class ReasoningConfig:
     max_clauses: int = 6
     interrupt_at: float = 0.75
     node_retries: int = 2
+    # Optional OpenAI-compatible LlmClient; when set, the Reason node uses it (duck-typed to
+    # avoid a hard import). None → deterministic template reasoning.
+    llm: object | None = None
 
 
 def build_reasoning_graph(*, node_retries: int = 2) -> StateGraph:
@@ -93,3 +96,22 @@ class GraphReasoner:
         retrieval service in the config."""
         state = ReasoningState(org_id=org_id, node_id=node_id, risk_score=risk_score)
         return self._graph.run(state, self._config)
+
+
+def build_reasoner(settings, *, retrieval: RetrievalService | None = None) -> GraphReasoner:
+    """Build the graph reasoner from settings. ``llm_provider == "openai"`` plugs a real
+    OpenAI-compatible model into the Reason node; otherwise the deterministic template runs."""
+    llm = None
+    if getattr(settings, "llm_provider", "template") == "openai":
+        from cortex.services.llm.llm_client import LlmClient
+
+        llm = LlmClient(
+            model=getattr(settings, "llm_model", "gpt-4o-mini"),
+            api_key=getattr(settings, "llm_api_key", ""),
+            base_url=getattr(settings, "llm_base_url", "https://api.openai.com/v1"),
+        )
+    return GraphReasoner(ReasoningConfig(
+        retrieval=retrieval,
+        evidence_hops=getattr(settings, "evidence_hops", 3),
+        llm=llm,
+    ))

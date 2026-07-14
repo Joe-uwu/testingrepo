@@ -46,6 +46,7 @@ class ReasoningState:
     # --- Reason ---
     summary: str = ""
     explanation: str = ""
+    llm_actions: list | None = None  # actions proposed by the LLM (used by Recommend)
 
     # --- Ground ---
     citations: list[Citation] = field(default_factory=list)

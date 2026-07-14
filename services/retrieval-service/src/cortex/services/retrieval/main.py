@@ -14,7 +14,7 @@ from cortex.platform.logging import get_logger
 from cortex.platform.observability import METRICS
 from cortex.platform.runtime import build_bus, build_graph_repo
 from cortex.services.retrieval.config import GROUP, SERVICE_NAME, RetrievalSettings
-from cortex.services.retrieval.embeddings import CachedEmbedder, HashingEmbedder
+from cortex.services.retrieval.embeddings import build_embedder
 from cortex.services.retrieval.http import create_app
 from cortex.services.retrieval.service import RetrievalService
 from cortex.services.retrieval.vectors import InMemoryVectorIndex, VectorIndex
@@ -36,7 +36,11 @@ def main() -> None:
     settings = RetrievalSettings()
     bus = build_bus(settings, client_id=GROUP)
     repo = build_graph_repo(settings)
-    embedder = CachedEmbedder(HashingEmbedder(settings.embedding_dim))
+    embedder = build_embedder(
+        provider=settings.embedding_provider, model=settings.embedding_model,
+        api_key=settings.embedding_api_key, base_url=settings.embedding_base_url,
+        dim=settings.embedding_dim,
+    )
     vector_index = _build_vector_index(settings, embedder.dim)
     retrieval = RetrievalService(repo, embedder=embedder, vector_index=vector_index)
 

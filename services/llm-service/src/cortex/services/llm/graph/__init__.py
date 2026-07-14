@@ -11,7 +11,12 @@ replace the node bodies without changing the graph shape.
 """
 
 from cortex.services.llm.graph.engine import END, Node, StateGraph
-from cortex.services.llm.graph.pipeline import GraphReasoner, ReasoningConfig, build_reasoning_graph
+from cortex.services.llm.graph.pipeline import (
+    GraphReasoner,
+    ReasoningConfig,
+    build_reasoner,
+    build_reasoning_graph,
+)
 from cortex.services.llm.graph.state import Finding, ReasoningState
 
 __all__ = [
@@ -20,6 +25,7 @@ __all__ = [
     "StateGraph",
     "GraphReasoner",
     "ReasoningConfig",
+    "build_reasoner",
     "build_reasoning_graph",
     "ReasoningState",
     "Finding",
